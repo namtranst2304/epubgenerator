@@ -3,7 +3,6 @@ import '../models/chapter.dart';
 
 class ChapterScreen extends StatelessWidget {
   final Chapter chapter;
-
   const ChapterScreen({super.key, required this.chapter});
 
   @override
@@ -12,7 +11,11 @@ class ChapterScreen extends StatelessWidget {
       appBar: AppBar(title: Text(chapter.title)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(child: Text(chapter.content)),
+        child: SingleChildScrollView(
+          child: Text(chapter.content.isNotEmpty
+              ? chapter.content
+              : 'Nội dung chương chưa được tải. URL: ${chapter.url}'),
+        ),
       ),
     );
   }

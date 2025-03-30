@@ -1,50 +1,65 @@
 import 'package:flutter/material.dart';
-import 'toc_screen.dart';
+import '../models/book.dart';
 import '../services/scraper.dart';
 import '../services/epub_generator.dart';
+import 'toc_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   HomeScreenState createState() => HomeScreenState();
 }
 
 class HomeScreenState extends State<HomeScreen> {
   final TextEditingController _urlController = TextEditingController();
-  String _status = "";
-  var book;
+  String _status = '';
+  Book? _book;
 
-  Future<void> _downloadBook() async {
+  // Hàm lấy dữ liệu truyện và tạo file ePub
+  Future<void> _fetchAndGenerateEpub() async {
     String url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
-        _status = "Vui lòng nhập URL!";
+        _status = 'Vui lòng nhập URL!';
       });
       return;
     }
-
     setState(() {
-      _status = "Đang tải truyện...";
+      _status = 'Đang lấy dữ liệu truyện...';
     });
-
-    try {
-      book = await Scraper.fetchBook(url);
-      await EpubGenerator.createEpub(book);
+    // Sử dụng Scraper để lấy thông tin Book từ URL danh sách chương
+    Book? book = await Scraper().fetchBookData(url);
+    if (book != null) {
+      _book = book;
+      // Tạo file ePub từ dữ liệu truyện\n      await EpubGenerator().generateEpub(book);
       setState(() {
-        _status = "Tạo file ePub thành công!";
+        _status = 'Tạo file ePub thành công!';
       });
-    } catch (e) {
+    } else {
       setState(() {
-        _status = "Lỗi: $e";
+        _status = 'Lỗi khi lấy dữ liệu truyện.';
       });
     }
+  }
+
+  // Chuyển sang màn hình danh sách chương
+  void _goToTOC() {
+    if (_book == null) {
+      setState(() {
+        _status = 'Chưa có dữ liệu truyện để xem.';
+      });
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TOCScreen(book: _book!)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Ebook Converter")),
+      appBar: AppBar(title: const Text('Epub Generator')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -52,22 +67,20 @@ class HomeScreenState extends State<HomeScreen> {
             TextField(
               controller: _urlController,
               decoration: const InputDecoration(
-                labelText: "Nhập link truyện",
+                labelText:
+                    'Nhập URL danh sách chương (ví dụ: https://cvtruyenchu.com/truyen/bi-thuat-chi-chu/danh-sach-chuong?page=2)',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: _downloadBook,
-              child: const Text("Tải truyện & tạo ePub"),
+              onPressed: _fetchAndGenerateEpub,
+              child: const Text('Tải truyện & tạo ePub'),
             ),
+            const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (context) => TOCScreen(book: book),
-                ));
-              },
-              child: const Text("Xem nội dung truyện"),
+              onPressed: _goToTOC,
+              child: const Text('Xem nội dung truyện'),
             ),
             const SizedBox(height: 20),
             Text(_status, style: const TextStyle(color: Colors.red)),
