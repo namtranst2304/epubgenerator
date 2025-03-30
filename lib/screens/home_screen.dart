@@ -27,17 +27,27 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       _status = 'Đang lấy dữ liệu truyện...';
     });
-    // Sử dụng Scraper để lấy thông tin Book từ URL danh sách chương
-    Book? book = await Scraper().fetchBookData(url);
-    if (book != null) {
-      _book = book;
-      // Tạo file ePub từ dữ liệu truyện\n      await EpubGenerator().generateEpub(book);
+    try {
+      // Sử dụng Scraper để lấy thông tin Book từ URL danh sách chương
+      Book? book = await Scraper().fetchBookData(url);
+      if (book != null) {
+        _book = book;
+        setState(() {
+          _status = 'Đang tạo file ePub...';
+        });
+        // Generate EPUB with chapter content
+        await EpubGenerator().generateEpub(book);
+        setState(() {
+          _status = 'Tạo file ePub thành công!';
+        });
+      } else {
+        setState(() {
+          _status = 'Không tìm thấy dữ liệu truyện. Vui lòng kiểm tra URL.';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _status = 'Tạo file ePub thành công!';
-      });
-    } else {
-      setState(() {
-        _status = 'Lỗi khi lấy dữ liệu truyện.';
+        _status = 'Lỗi: $e';
       });
     }
   }
