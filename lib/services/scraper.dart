@@ -110,6 +110,7 @@ class Scraper {
       var scriptTag = document.querySelector('script#__NEXT_DATA__');
       if (scriptTag == null) {
         print('Không tìm thấy thẻ script cho URL: $chapterUrl'); // Log nếu không tìm thấy thẻ script
+        print('Nội dung HTML không hợp lệ: $pageContent'); // Log raw HTML for debugging
         return 'Không tìm thấy nội dung chương.';
       }
 
