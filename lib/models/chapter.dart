@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class Chapter {
   final String title;
   final String url;
-  final String content;
+  String content; // Remove 'final' to make it mutable
 
-  Chapter({required this.title, required this.url, required this.content});
+  Chapter({required this.title, required this.url, this.content = ''});
 }

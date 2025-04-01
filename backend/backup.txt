@@ -1,0 +1,117 @@
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const Epub = require('epub-gen'); // Import epub-gen
+const { Document, Packer, Paragraph, TextRun } = require('docx'); // Import docx
+const router = express.Router();
+
+// Endpoint to download a file
+router.get('/download', (req, res) => {
+  const { filePath } = req.query;
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, (err) => {
+    if (err) {
+      console.error('Error sending file:', err);
+    } else {
+      console.log(`File sent: ${filePath}`);
+    }
+  });
+});
+
+// Endpoint to generate EPUB
+router.post('/generate-epub', async (req, res) => {
+  const { title, chapters } = req.body;
+
+  if (!title || !chapters || !Array.isArray(chapters)) {
+    return res.status(400).json({ error: 'Invalid data for EPUB generation' });
+  }
+
+  try {
+    const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+    const outputPath = path.join(__dirname, `${sanitizedTitle}.epub`);
+
+    const options = {
+      title: title,
+      author: 'Epub Generator',
+      content: chapters.map((chapter) => ({
+        title: chapter.title, // Use the chapter title directly without numbering
+        data: chapter.content,
+      })),
+    };
+
+    await new Epub(options, outputPath).promise;
+
+    res.json({ message: 'EPUB generated successfully', filePath: outputPath });
+  } catch (error) {
+    console.error('Error generating EPUB:', error);
+    res.status(500).json({ error: 'Failed to generate EPUB', details: error.message });
+  }
+});
+
+// Endpoint to generate Word file
+router.post('/generate-word', async (req, res) => {
+  const { title, chapters } = req.body;
+
+  if (!title || !chapters || !Array.isArray(chapters)) {
+    return res.status(400).json({ error: 'Invalid data for Word generation' });
+  }
+
+  try {
+    const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+    const outputPath = path.join(__dirname, `${sanitizedTitle}.docx`);
+
+    const doc = new Document({
+      sections: [
+        {
+          children: chapters.flatMap((chapter) => [
+            // Add chapter title
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${chapter.title}`,
+                  bold: true,
+                  size: 26,
+                }),
+              ],
+            }),
+            // Add chapter content with HTML formatting
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: '',
+                  break: 1, // Ensure spacing before content
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: chapter.content,
+                  size: 24,
+                }),
+              ],
+            }),
+            // Add a page break after each chapter
+            new Paragraph({
+              children: [new TextRun({ text: '', break: 1 })],
+            }),
+          ]),
+        },
+      ],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+
+    res.json({ message: 'Word file generated successfully', filePath: outputPath });
+  } catch (error) {
+    console.error('Error generating Word file:', error);
+    res.status(500).json({ error: 'Failed to generate Word file', details: error.message });
+  }
+});
+
+module.exports = router;
