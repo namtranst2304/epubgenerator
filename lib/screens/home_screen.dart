@@ -46,31 +46,38 @@ class HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Fetch content for each chapter
-      bool isFirstFetch = true; // Track if this is the first fetch
-      int currentIndex = 0; // Start from the first chapter
-
-      while (currentIndex < _book!.chapters.length) {
-        var chapter = _book!.chapters[currentIndex];
-
-        if (chapter.content.isEmpty) {
-          // Apply a 10-second delay only after the first fetch
-          if (isFirstFetch) {
-            await Future.delayed(const Duration(seconds: 10)); // Delay for 10 seconds
-            isFirstFetch = false; // Mark the first fetch as completed
-            currentIndex = 0; // Restart fetching from the first chapter
-            continue;
-          }
-
-          // Fetch chapter content
-          chapter.content = await _scraper.fetchChapterContent(chapter.url);
-
-          // Preserve original HTML structure (no additional formatting)
-          // No further processing is applied to the content
+      // Fetch the first chapter with a 10-second delay
+      if (_book!.chapters.isNotEmpty) {
+        var firstChapter = _book!.chapters[0];
+        if (firstChapter.content.isEmpty) {
+          setState(() {
+            _status = 'Vui lòng không tắt trình duyệt vừa được mở lên và đợi cho trang tải xong hoàn toàn';
+          });
+          firstChapter.content = await _scraper.fetchChapterContent(firstChapter.url);
+          await Future.delayed(const Duration(seconds: 10)); // Delay for 10 seconds
         }
+      }
 
-        // Move to the next chapter
-        currentIndex++;
+      // Clear all chapter data
+      setState(() {
+        _status = 'Xóa dữ liệu chương trước khi tải lại...';
+      });
+      for (var chapter in _book!.chapters) {
+        chapter.content = ''; // Clear chapter content
+      }
+
+      // Fetch all chapters, ensuring the first chapter is included
+      setState(() {
+        _status = 'Đang tải các chương còn lại...';
+      });
+      for (var i = 0; i < _book!.chapters.length; i++) {
+        var chapter = _book!.chapters[i];
+        chapter.content = await _scraper.fetchChapterContent(chapter.url);
+        if (chapter.content.isNotEmpty) {
+          print('✅ "${chapter.title}" fetched successfully.');
+        } else {
+          print('❌ Failed to fetch "${chapter.title}".');
+        }
       }
 
       // Generate file
@@ -78,7 +85,7 @@ class HomeScreenState extends State<HomeScreen> {
         Uri.parse('http://localhost:3000/generate-$type'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'title': type == 'epub' ? 'GenEpub' : 'GenWord',
+          'title': _book!.title, // Use the actual book title
           'chapters': _book!.chapters.map((c) => {
             'title': c.title,
             'url': c.url,
@@ -169,13 +176,59 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: _goToTOC,
+              onPressed: () async {
+                String url = _urlController.text.trim();
+                if (url.isEmpty) {
+                  setState(() {
+                    _status = 'Vui lòng nhập URL!';
+                  });
+                  return;
+                }
+
+                setState(() {
+                  _status = 'Đang tải nội dung truyện...';
+                });
+
+                try {
+                  // Fetch book data
+                  _book = await _scraper.fetchBookData(url);
+                  if (_book == null) {
+                    setState(() {
+                      _status = 'Không tìm thấy dữ liệu truyện. Vui lòng kiểm tra URL.';
+                    });
+                    return;
+                  }
+
+                  // Fetch the first chapter with a 10-second delay
+                  if (_book!.chapters.isNotEmpty) {
+                    var firstChapter = _book!.chapters[0];
+                    if (firstChapter.content.isEmpty) {
+                      setState(() {
+                        _status = 'Vui lòng không tắt trình duyệt vừa được mở lên và đợi cho trang tải xong hoàn toàn';
+                      });
+                      firstChapter.content = await _scraper.fetchChapterContent(firstChapter.url);
+                      await Future.delayed(const Duration(seconds: 10)); // Delay for 10 seconds
+                    }
+                  }
+
+                  // Clear all chapter data
+                  setState(() {
+                    _status = 'Tải nội dung thành công';
+                  });
+                  for (var chapter in _book!.chapters) {
+                    chapter.content = ''; // Clear chapter content
+                  }
+
+                  // Navigate to the TOC screen
+                  _goToTOC();
+                  
+                } catch (e) {
+                  setState(() {
+                    _status = 'Lỗi: $e';
+                  });
+                }
+              },
               child: const Text('Xem nội dung truyện'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () => _fetchAndGenerateFile('word'),
-              child: const Text('Tải truyện và tạo file Word'),
             ),
             const SizedBox(height: 20),
             Text(_status, style: const TextStyle(color: Colors.red)),

@@ -84,8 +84,16 @@ class Scraper {
       // Lấy tiêu đề sách từ thẻ h1 có itemProp='name'
       String title = document.querySelector("h1[itemProp='name'] a")?.text.trim() ?? "";
       if (title.isEmpty) {
-        _logger.warning('Không tìm thấy tiêu đề sách. Sử dụng tiêu đề mặc định.');
-        title = "NoTitle"; // Set default title if not found
+        _logger.warning('Không tìm thấy tiêu đề sách. Suy đoán tiêu đề từ URL.');
+        // Suy đoán tiêu đề từ URL
+        final uri = Uri.parse(url);
+        final segments = uri.pathSegments;
+        if (segments.isNotEmpty) {
+          title = segments[1].replaceAll('-', ' ').replaceFirstMapped(
+              RegExp(r'(^|\s)(\w)'), (match) => match.group(0)!.toUpperCase());
+        } else {
+          title = "Unknown Title"; // Fallback title
+        }
       }
       _logger.info('Tiêu đề sách: $title');
 

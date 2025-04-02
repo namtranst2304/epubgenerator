@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class Chapter {
   final String title;
   final String url;
